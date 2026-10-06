@@ -1,0 +1,28 @@
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Cache de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Variables de entorno / secretos
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs y temporales
+*.log
+*.tmp
+*.temp
