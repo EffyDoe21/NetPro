@@ -66,9 +66,12 @@ class SystemFrame(ctk.CTkFrame):
         # --------------------------------------------------------
 
         self.scroll = ctk.CTkScrollableFrame(
-            self,
-            fg_color=self.FONDO,
-            corner_radius=0
+        self,
+        fg_color=self.FONDO,
+        corner_radius=0,
+        scrollbar_fg_color=self.FONDO,
+        scrollbar_button_color="#168BEB",
+        scrollbar_button_hover_color="#36A5FF"
         )
 
         self.scroll.grid(
@@ -109,9 +112,6 @@ class SystemFrame(ctk.CTkFrame):
         )
 
     # ============================================================
-    # ENCABEZADO
-    # ============================================================
-        # ============================================================
     # ENCABEZADO
     # ============================================================
 

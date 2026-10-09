@@ -77,11 +77,13 @@ class HistoryFrame(ctk.CTkFrame):
         # ========================================================
         # SCROLL PRINCIPAL
         # ========================================================
-
         self.scroll = ctk.CTkScrollableFrame(
             self,
             fg_color=self.FONDO,
-            corner_radius=0
+            corner_radius=0,
+            scrollbar_fg_color=self.FONDO,
+            scrollbar_button_color="#168BEB",
+            scrollbar_button_hover_color="#36A5FF"
         )
 
         self.scroll.grid(
@@ -148,7 +150,7 @@ class HistoryFrame(ctk.CTkFrame):
 
         ctk.CTkLabel(
             titulo_frame,
-            text="▣ Historial",
+            text="📋 Historial",
             font=(
                 "Arial",
                 28,

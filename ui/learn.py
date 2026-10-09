@@ -89,9 +89,10 @@ class LearnFrame(ctk.CTkFrame):
         )
 
         self.titulo_principal.grid(
-            row=0,
-            column=0,
-            pady=(0, 4)
+        row=0,
+        column=0,
+        sticky="w",
+        pady=(0, 4)
         )
 
         self.subtitulo_principal = ctk.CTkLabel(
@@ -105,8 +106,9 @@ class LearnFrame(ctk.CTkFrame):
         )
 
         self.subtitulo_principal.grid(
-            row=1,
-            column=0
+        row=1,
+        column=0,
+        sticky="w"
         )
 
         # ====================================================
@@ -179,8 +181,11 @@ class LearnFrame(ctk.CTkFrame):
         # ====================================================
 
         scroll = ctk.CTkScrollableFrame(
-            self.contenedor,
-            fg_color="transparent"
+        self.contenedor,
+        fg_color="transparent",
+        scrollbar_fg_color="#2B2B2B",
+        scrollbar_button_color="#168BEB",
+        scrollbar_button_hover_color="#36A5FF"
         )
 
         scroll.grid(
