@@ -26,3 +26,10 @@ Desktop.ini
 *.log
 *.tmp
 *.temp
+
+# Base de datos SQLite - NetPro
+data/netpro.db
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
