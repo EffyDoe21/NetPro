@@ -155,8 +155,6 @@ NetPro tiene fines educativos y de diagnóstico.
 
 **Estefanía Becerra Quintero**
 
-Proyecto desarrollado como parte del proceso de formación en Ingeniería de Software.
-
 ## 📄 Licencia
 
 Este proyecto se encuentra actualmente destinado a fines académicos y educativos.

@@ -2,160 +2,158 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from core.subnet import analizar_subred
+from core.history import guardar_ipv4
 from ui.binary_visualizer import BinaryVisualizer
 
 
 class AnalyzerFrame(ctk.CTkFrame):
-
     AZUL = "#3B8ED0"
     AZUL_HOVER = "#367EB8"
     PANEL_COLOR = "#1A1A1A"
-    PANEL_BORDER = "#343638"
+    PANEL_BORDER = "#414141"
+    FONDO = "#2B2B2B"
+    TEXTO = "#f5f5f5"
+    SECUNDARIO = "#a8a8a8"
 
     def __init__(self, parent):
-        super().__init__(parent)
-
+        super().__init__(parent, fg_color=self.FONDO, corner_radius=0)
         self.ultimo_resultado = None
+        self.valores = {}
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-        title = ctk.CTkLabel(
-            self,
-            text="Analizador IPv4",
-            font=("Arial", 30, "bold"),
-            text_color=self.AZUL
-        )
-        title.pack(pady=(35, 5))
+        encabezado = ctk.CTkFrame(self, fg_color="transparent")
+        encabezado.grid(row=0, column=0, sticky="ew", padx=28, pady=(22, 15))
+        encabezado.grid_columnconfigure(0, weight=1)
+        titulo = ctk.CTkFrame(encabezado, fg_color="transparent")
+        titulo.grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(titulo, text="🌐  Analizador IPv4",
+                     font=("Arial", 27, "bold"), text_color=self.AZUL).pack(anchor="w")
+        ctk.CTkLabel(titulo,
+                     text="Analiza direcciones IPv4, subredes, hosts y estructura de 32 bits.",
+                     font=("Arial", 13), text_color=self.SECUNDARIO).pack(anchor="w", pady=(5, 0))
 
-        description = ctk.CTkLabel(
-            self,
-            text="Analiza una dirección IPv4 y aprende cómo está construida su red.",
-            font=("Arial", 14)
-        )
-        description.pack(pady=(0, 20))
+        accesos = ctk.CTkFrame(encabezado, fg_color="transparent")
+        accesos.grid(row=0, column=1, sticky="e", padx=(15, 0))
+        for texto, funcion in [
+            ("¿Qué significa?", self.mostrar_significados),
+            ("¿Cómo se calculó?", self.mostrar_calculo),
+            ("Visualizar bits", self.mostrar_visualizador),
+        ]:
+            ctk.CTkButton(accesos, text=texto, height=34, width=145,
+                          fg_color="#343434", hover_color="#414141",
+                          border_width=1, border_color="#505050",
+                          command=funcion).pack(side="left", padx=(7, 0))
 
-        formulario = ctk.CTkFrame(
-        self,
-        fg_color="transparent"
-        )
-        formulario.pack(padx=30, pady=10)
-        
-        ip_label = ctk.CTkLabel(
-            formulario,
-            text="Dirección IPv4",
-            text_color=self.AZUL
-        )
-        ip_label.grid(row=0, column=0, padx=15, pady=(15, 5))
+        self.scroll = ctk.CTkScrollableFrame(
+            self, fg_color="transparent", corner_radius=0,
+            scrollbar_button_color="#2879B1",
+            scrollbar_button_hover_color="#3B8ED0")
+        self.scroll.grid(row=1, column=0, sticky="nsew", padx=22, pady=(0, 12))
+        self.scroll.grid_columnconfigure(0, weight=1)
 
-        self.ip_entry = ctk.CTkEntry(
-            formulario,
-            width=300,
-            height=40,
-            placeholder_text="192.168.10.37"
-        )
-        self.ip_entry.grid(row=1, column=0, padx=15, pady=(0, 15))
+        entrada = self.crear_panel("ANALIZADOR IPv4")
+        ctk.CTkLabel(entrada, text="Introduce una dirección IPv4 y un prefijo CIDR.",
+                     font=("Arial", 12), text_color=self.SECUNDARIO).pack(
+                         anchor="w", padx=20, pady=(0, 12))
+        formulario = ctk.CTkFrame(entrada, fg_color="transparent")
+        formulario.pack(fill="x", padx=20, pady=(0, 20))
+        formulario.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(formulario, text="Dirección IPv4", text_color=self.SECUNDARIO,
+                     font=("Arial", 11)).grid(row=0, column=0, sticky="w", pady=(0, 5))
+        ctk.CTkLabel(formulario, text="CIDR", text_color=self.SECUNDARIO,
+                     font=("Arial", 11)).grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 5))
+        self.ip_entry = ctk.CTkEntry(formulario, height=38,
+                                    placeholder_text="Ejemplo: 192.168.10.37")
+        self.ip_entry.grid(row=1, column=0, sticky="ew")
+        self.cidr_entry = ctk.CTkEntry(formulario, width=105, height=38,
+                                      placeholder_text="24")
+        self.cidr_entry.grid(row=1, column=1, padx=(10, 12))
+        self.ip_entry.bind("<Return>", lambda _: self.analizar())
+        self.cidr_entry.bind("<Return>", lambda _: self.analizar())
+        ctk.CTkButton(formulario, text="ANALIZAR", width=125, height=38,
+                      fg_color=self.AZUL, hover_color=self.AZUL_HOVER,
+                      command=self.analizar).grid(row=1, column=2)
 
-        cidr_label = ctk.CTkLabel(
-            formulario,
-            text="CIDR",
-            text_color=self.AZUL
-        )
-        cidr_label.grid(row=0, column=1, padx=15, pady=(15, 5))
+        resumen = ctk.CTkFrame(self.scroll, fg_color="transparent")
+        resumen.pack(fill="x", pady=(0, 12))
+        for i in range(3):
+            resumen.grid_columnconfigure(i, weight=1, uniform="resumen")
+        for i, (titulo, clave) in enumerate([
+            ("DIRECCIÓN DE RED", "network"), ("PREFIJO", "cidr"),
+            ("HOSTS UTILIZABLES", "usable_hosts")
+        ]):
+            tarjeta = ctk.CTkFrame(resumen, fg_color=self.PANEL_COLOR,
+                                   border_width=1, border_color=self.PANEL_BORDER,
+                                   corner_radius=10, height=105)
+            tarjeta.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 5, 0 if i == 2 else 5))
+            tarjeta.grid_propagate(False)
+            ctk.CTkLabel(tarjeta, text=titulo, font=("Arial", 11, "bold"),
+                         text_color=self.SECUNDARIO).pack(anchor="w", padx=16, pady=(13, 5))
+            valor = ctk.CTkLabel(tarjeta, text="--", font=("Arial", 19, "bold"),
+                                 text_color=self.AZUL)
+            valor.pack(anchor="w", padx=16)
+            self.valores[clave] = valor
 
-        self.cidr_entry = ctk.CTkEntry(
-            formulario,
-            width=150,
-            height=40,
-            placeholder_text="24"
-        )
-        self.cidr_entry.grid(row=1, column=1, padx=15, pady=(0, 15))
+        info = self.crear_panel("INFORMACIÓN IPv4")
+        filas = [
+            ("Dirección IP", "ip"), ("Máscara de subred", "netmask"),
+            ("Wildcard", "wildcard"), ("Broadcast", "broadcast"),
+            ("Primer host", "first_host"), ("Último host", "last_host"),
+            ("Total de direcciones", "total_addresses"),
+            ("IP privada", "private"), ("Versión", "version")
+        ]
+        tabla = ctk.CTkFrame(info, fg_color="transparent")
+        tabla.pack(fill="x", padx=20, pady=(0, 18))
+        tabla.grid_columnconfigure(1, weight=1)
+        for fila, (nombre, clave) in enumerate(filas):
+            ctk.CTkLabel(tabla, text=nombre, font=("Arial", 12),
+                         text_color=self.SECUNDARIO, width=175, anchor="w").grid(
+                             row=fila, column=0, sticky="w", pady=6)
+            valor = ctk.CTkLabel(tabla, text="--", font=("Consolas", 12),
+                                 text_color=self.TEXTO, anchor="w")
+            valor.grid(row=fila, column=1, sticky="w", pady=6)
+            self.valores[clave] = valor
 
-        analyze_button = ctk.CTkButton(
-            self,
-            text="ANALIZAR",
-            width=220,
-            height=45,
-            font=("Arial", 14, "bold"),
-            fg_color=self.AZUL,
-            hover_color=self.AZUL_HOVER,
-            command=self.analizar
-        )
-        analyze_button.pack(pady=15)
+        estado = self.crear_panel("DETALLE DEL ANÁLISIS")
+        self.resultado = ctk.CTkTextbox(estado, height=145, font=("Consolas", 12),
+                                        wrap="word", fg_color="#202020",
+                                        border_width=1, border_color=self.PANEL_BORDER,
+                                        corner_radius=7)
+        self.resultado.pack(fill="x", padx=20, pady=(0, 18))
+        self.escribir_resultado("Introduce una dirección IPv4 y un CIDR para comenzar.\n"
+                               "Ejemplo: 192.168.10.37 / 24")
 
-        self.resultado = ctk.CTkTextbox(
-            self,
-            width=800,
-            height=430,
-            font=("Consolas", 14),
-            wrap="word",
-            fg_color=self.PANEL_COLOR,
-            border_width=1,
-            border_color=self.PANEL_BORDER,
-            corner_radius=12
-        )
-        self.resultado.pack(
-            padx=30,
-            pady=(5, 15),
-            fill="both",
-            expand=True
-        )
-
-        self.escribir_resultado(
-            "Introduce una dirección IPv4 y un CIDR para comenzar.\n\n"
-            "Ejemplo:\n"
-            "IP:   192.168.10.37\n"
-            "CIDR: 24"
-        )
-
-        botones_educativos = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
-        )
-        botones_educativos.pack(pady=(0, 25))
-
-        self.btn_significado = ctk.CTkButton(
-            botones_educativos,
-            text="¿QUÉ SIGNIFICA?",
-            width=220,
-            height=40,
-            fg_color=self.AZUL,
-            hover_color=self.AZUL_HOVER,
-            command=self.mostrar_significados
-        )
-        self.btn_significado.grid(row=0, column=0, padx=10)
-
-        self.btn_calculo = ctk.CTkButton(
-            botones_educativos,
-            text="🧠 ¿CÓMO SE CALCULÓ?",
-            width=220,
-            height=40,
-            fg_color=self.AZUL,
-            hover_color=self.AZUL_HOVER,
-            command=self.mostrar_calculo
-        )
-        self.btn_calculo.grid(row=0, column=1, padx=10)
-
-        self.btn_visualizar = ctk.CTkButton(
-            botones_educativos,
-            text="◫ VISUALIZAR BITS",
-            width=220,
-            height=40,
-            fg_color=self.AZUL,
-            hover_color=self.AZUL_HOVER,
-            command=self.mostrar_visualizador
-        )
-        self.btn_visualizar.grid(row=0, column=2, padx=10)
-
-    # ============================================================
-    # RESULTADO PRINCIPAL
-    # ============================================================
+    def crear_panel(self, titulo):
+        panel = ctk.CTkFrame(self.scroll, fg_color=self.PANEL_COLOR,
+                             border_width=1, border_color=self.PANEL_BORDER,
+                             corner_radius=10)
+        panel.pack(fill="x", pady=(0, 13))
+        ctk.CTkLabel(panel, text=titulo, font=("Arial", 13, "bold"),
+                     text_color=self.AZUL).pack(anchor="w", padx=20, pady=(18, 12))
+        return panel
 
     def escribir_resultado(self, texto):
-
         self.resultado.configure(state="normal")
         self.resultado.delete("1.0", "end")
         self.resultado.insert("1.0", texto)
         self.resultado.configure(state="disabled")
+        r = self.ultimo_resultado
+        for clave, etiqueta in self.valores.items():
+            if r is None:
+                etiqueta.configure(text="--")
+            elif clave == "private":
+                etiqueta.configure(text="Sí" if r["private"] else "No")
+            elif clave == "version":
+                etiqueta.configure(text=f"IPv{r['version']}")
+            else:
+                etiqueta.configure(text=str(r.get(clave, "--")))
 
     # ============================================================
+    # ANALIZAR
+    # ============================================================
+
+        # ============================================================
     # ANALIZAR
     # ============================================================
 
@@ -166,17 +164,59 @@ class AnalyzerFrame(ctk.CTkFrame):
 
         try:
 
+            # ====================================================
+            # VALIDAR IP
+            # ====================================================
+
             if not ip:
                 raise ValueError
+
+            # ====================================================
+            # VALIDAR CIDR
+            # ====================================================
 
             cidr = int(cidr_texto)
 
             if cidr < 0 or cidr > 32:
                 raise ValueError
 
-            resultado = analizar_subred(ip, cidr)
+            # ====================================================
+            # ANALIZAR SUBRED
+            # ====================================================
+
+            resultado = analizar_subred(
+                ip,
+                cidr
+            )
 
             self.ultimo_resultado = resultado
+
+            # ====================================================
+            # GUARDAR AUTOMATICAMENTE EN HISTORIAL
+            # ====================================================
+
+            try:
+
+                guardar_ipv4(
+                    resultado
+                )
+
+            except Exception as error_historial:
+
+                # El historial nunca debe impedir que
+                # el analizador principal funcione.
+                print(
+                    "[NetPro Historial] "
+                    "No se pudo guardar el analisis IPv4:"
+                )
+
+                print(
+                    error_historial
+                )
+
+            # ====================================================
+            # PREPARAR RESULTADO
+            # ====================================================
 
             privado = (
                 "Sí"
@@ -206,7 +246,9 @@ IP privada          {privado}
 Versión             IPv{resultado['version']}
 """
 
-            self.escribir_resultado(texto)
+            self.escribir_resultado(
+                texto
+            )
 
         except ValueError:
 

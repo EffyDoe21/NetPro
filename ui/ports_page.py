@@ -9,6 +9,8 @@ from core.ports import (
     resumir_resultados
 )
 
+from core.history import guardar_puertos
+
 from AI.ollama_client import (
     analizar_puerto_con_ia,
     analizar_resultados_con_ia,
@@ -29,6 +31,7 @@ class PortsFrame(ctk.CTkFrame):
         self.resultados = []
         self.resultado_seleccionado = None
         self.analizando = False
+        self.ultimo_host_analizado = None
 
         # ====================================================
         # COLORES NETPRO
@@ -56,215 +59,82 @@ class PortsFrame(ctk.CTkFrame):
         self.grid_rowconfigure(4, weight=1)
 
         # ====================================================
-        # ENCABEZADO
+        # ENCABEZADO - ALINEADO A LA IZQUIERDA
         # ====================================================
-
-        encabezado = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
-        )
-
-        encabezado.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-            padx=25,
-            pady=(20, 5)
-        )
-
+        encabezado = ctk.CTkFrame(self, fg_color="transparent")
+        encabezado.grid(row=0, column=0, sticky="ew", padx=30, pady=(22, 8))
         encabezado.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            encabezado,
-            text="🔌 Puertos",
-            font=("Arial", 28, "bold"),
-            text_color=self.COLOR_AZUL
-        ).grid(
-            row=0,
-            column=0,
-            pady=(0, 4)
-        )
+            encabezado, text="🔌 Puertos", font=("Arial", 28, "bold"),
+            text_color=self.COLOR_AZUL, anchor="w"
+        ).grid(row=0, column=0, sticky="w")
 
         ctk.CTkLabel(
             encabezado,
-            text=(
-                "Comprueba puertos TCP, servicios asociados "
-                "y exposición de red."
-            ),
-            font=("Arial", 13),
-            text_color=self.COLOR_TEXTO
-        ).grid(
-            row=1,
-            column=0
-        )
+            text="Comprueba puertos TCP, servicios asociados y exposición de red.",
+            font=("Arial", 13), text_color=self.COLOR_TEXTO, anchor="w"
+        ).grid(row=1, column=0, sticky="w", pady=(3, 0))
 
         self.label_estado_ia = ctk.CTkLabel(
-            encabezado,
-            text="● Comprobando NetPro AI...",
-            font=("Arial", 10, "bold"),
-            text_color=self.COLOR_AMARILLO
+            encabezado, text="● Comprobando NetPro AI...",
+            font=("Arial", 11, "bold"),
+            text_color=self.COLOR_AMARILLO, anchor="w"
         )
-
-        self.label_estado_ia.grid(
-            row=2,
-            column=0,
-            pady=(5, 0)
-        )
+        self.label_estado_ia.grid(row=2, column=0, sticky="w", pady=(8, 0))
 
         # ====================================================
-        # PANEL DE CONFIGURACIÓN
+        # CONFIGURACION - TARJETA NETPRO
         # ====================================================
-
         panel_config = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
+            self, fg_color=self.COLOR_PANEL, corner_radius=10
         )
-
-        panel_config.grid(
-            row=1,
-            column=0,
-            sticky="ew",
-            padx=25,
-            pady=(10, 5)
-        )
-
+        panel_config.grid(row=1, column=0, sticky="ew", padx=30, pady=(8, 8))
         panel_config.grid_columnconfigure(0, weight=1)
 
-        # ====================================================
-        # DESTINO
-        # ====================================================
+        ctk.CTkLabel(
+            panel_config, text="ANALIZADOR DE PUERTOS",
+            font=("Arial", 11, "bold"), text_color=self.COLOR_AZUL,
+            anchor="w"
+        ).grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 5))
 
         ctk.CTkLabel(
-            panel_config,
-            text="Destino",
-            font=("Arial", 12),
-            text_color=self.COLOR_AZUL
-        ).grid(
-            row=0,
-            column=0,
-            pady=(0, 5)
-        )
+            panel_config, text="Destino", font=("Arial", 12),
+            text_color=self.COLOR_TEXTO, anchor="w"
+        ).grid(row=1, column=0, sticky="ew", padx=20, pady=(4, 5))
 
         self.entry_host = ctk.CTkEntry(
-            panel_config,
-            placeholder_text="Ejemplo: localhost o 192.168.1.1",
-            height=36
+            panel_config, placeholder_text="Ejemplo: localhost o 192.168.1.1",
+            height=38
         )
+        self.entry_host.grid(row=2, column=0, sticky="ew", padx=20)
 
-        self.entry_host.grid(
-            row=1,
-            column=0,
-            sticky="ew",
-            padx=120
-        )
+        controles = ctk.CTkFrame(panel_config, fg_color="transparent")
+        controles.grid(row=3, column=0, sticky="w", padx=20, pady=(14, 10))
 
-        # ====================================================
-        # CONTROLES
-        # ====================================================
-
-        controles = ctk.CTkFrame(
-            panel_config,
-            fg_color="transparent"
-        )
-
-        controles.grid(
-            row=2,
-            column=0,
-            pady=(15, 5)
-        )
-
-        # ====================================================
-        # MODO
-        # ====================================================
-
-        self.modo = ctk.StringVar(
-            value="Puerto individual"
-        )
-
+        self.modo = ctk.StringVar(value="Puerto individual")
         self.combo_modo = ctk.CTkOptionMenu(
             controles,
-            values=[
-                "Puerto individual",
-                "Puertos comunes",
-                "Rango"
-            ],
-            variable=self.modo,
-            command=self.cambiar_modo,
-            width=170,
-            fg_color=self.COLOR_AZUL,
-            button_color=self.COLOR_AZUL,
+            values=["Puerto individual", "Puertos comunes", "Rango"],
+            variable=self.modo, command=self.cambiar_modo, width=180,
+            fg_color=self.COLOR_AZUL, button_color=self.COLOR_AZUL,
             button_hover_color=self.COLOR_AZUL_HOVER
         )
+        self.combo_modo.grid(row=0, column=0, padx=(0, 12))
 
-        self.combo_modo.grid(
-            row=0,
-            column=0,
-            padx=5
-        )
-
-        # ====================================================
-        # PUERTO INDIVIDUAL
-        # ====================================================
-
-        self.label_puerto = ctk.CTkLabel(
-            controles,
-            text="Puerto:",
-            font=("Arial", 12)
-        )
-
-        self.entry_puerto = ctk.CTkEntry(
-            controles,
-            width=90,
-            placeholder_text="443"
-        )
-
-        # ====================================================
-        # RANGO
-        # ====================================================
-
-        self.label_rango = ctk.CTkLabel(
-            controles,
-            text="Rango:",
-            font=("Arial", 12)
-        )
-
-        self.entry_inicio = ctk.CTkEntry(
-            controles,
-            width=80,
-            placeholder_text="1"
-        )
-
-        self.label_hasta = ctk.CTkLabel(
-            controles,
-            text="a"
-        )
-
-        self.entry_fin = ctk.CTkEntry(
-            controles,
-            width=80,
-            placeholder_text="1024"
-        )
-
-        # ====================================================
-        # BOTÓN ANALIZAR
-        # ====================================================
+        self.label_puerto = ctk.CTkLabel(controles, text="Puerto:", font=("Arial", 12))
+        self.entry_puerto = ctk.CTkEntry(controles, width=90, placeholder_text="443")
+        self.label_rango = ctk.CTkLabel(controles, text="Rango:", font=("Arial", 12))
+        self.entry_inicio = ctk.CTkEntry(controles, width=80, placeholder_text="1")
+        self.label_hasta = ctk.CTkLabel(controles, text="a")
+        self.entry_fin = ctk.CTkEntry(controles, width=80, placeholder_text="1024")
 
         self.btn_analizar = ctk.CTkButton(
-            panel_config,
-            text="🔎 ANALIZAR",
-            width=325,
-            height=36,
-            font=("Arial", 12),
-            fg_color=self.COLOR_AZUL,
-            hover_color=self.COLOR_AZUL_HOVER,
-            command=self.iniciar_analisis
+            panel_config, text="🔎 ANALIZAR", width=220, height=38,
+            font=("Arial", 12, "bold"), fg_color=self.COLOR_AZUL,
+            hover_color=self.COLOR_AZUL_HOVER, command=self.iniciar_analisis
         )
-
-        self.btn_analizar.grid(
-            row=3,
-            column=0,
-            pady=(10, 5)
-        )
+        self.btn_analizar.grid(row=4, column=0, sticky="w", padx=20, pady=(0, 16))
 
         # ====================================================
         # RESUMEN
@@ -279,7 +149,7 @@ class PortsFrame(ctk.CTkFrame):
             row=2,
             column=0,
             sticky="ew",
-            padx=25,
+            padx=30,
             pady=(8, 5)
         )
 
@@ -348,7 +218,7 @@ class PortsFrame(ctk.CTkFrame):
             row=4,
             column=0,
             sticky="nsew",
-            padx=25,
+            padx=30,
             pady=(0, 20)
         )
 
@@ -764,6 +634,8 @@ class PortsFrame(ctk.CTkFrame):
 
             return
 
+        self.ultimo_host_analizado = host
+
         modo = self.modo.get()
 
         # ----------------------------------------------------
@@ -993,6 +865,24 @@ class PortsFrame(ctk.CTkFrame):
 
         self.analizando = False
         self.resultados = resultados
+
+        # ========================================================
+        # GUARDAR ESCANEO EN HISTORIAL
+        # ========================================================
+
+        if resultados:
+            try:
+                guardar_puertos(
+                    resultados,
+                    objetivo=self.ultimo_host_analizado
+                )
+
+            except Exception as error_historial:
+                print(
+                    "[NetPro Historial] "
+                    "No se pudo guardar el analisis de puertos:"
+                )
+                print(error_historial)
 
         self.btn_analizar.configure(
             text="🔎 ANALIZAR",

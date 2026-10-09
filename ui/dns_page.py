@@ -4,7 +4,7 @@ from tkinter import messagebox
 from urllib.parse import urlparse
 
 from core.dns import resolver_dominio
-
+from core.history import guardar_dns
 
 class DNSFrame(ctk.CTkFrame):
 
@@ -14,181 +14,162 @@ class DNSFrame(ctk.CTkFrame):
     PANEL_BORDER = "#343638"
 
     def __init__(self, parent):
-        super().__init__(parent)
-
+        super().__init__(parent, fg_color="#2B2B2B", corner_radius=0)
         self.ultimo_resultado = None
 
-        # ========================================================
-        # TÍTULO
-        # ========================================================
+        # ============================================================
+        # CABECERA NETPRO - ALINEADA A LA IZQUIERDA
+        # ============================================================
+        cabecera = ctk.CTkFrame(self, fg_color="transparent")
+        cabecera.pack(fill="x", padx=28, pady=(22, 15))
+        cabecera.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel (
-            self,
-            text="🔎 DNS Lookup",
-            font=("Arial", 30, "bold"),
-            text_color=self.AZUL
-        )
-        title.pack(pady=(30, 5))
-
-        subtitle = ctk.CTkLabel(
-            self,
-            text=(
-                "Consulta registros DNS y aprende "
-                "qué significa cada resultado."
-            ),
-            font=("Arial", 14)
-        )
-        subtitle.pack(pady=(0, 20))
-
-        # ========================================================
-        # DOMINIO
-        # ========================================================
-
-        self.domain_entry = ctk.CTkEntry(
-            self,
-            width=560,
-            height=42,
-            placeholder_text=(
-                "Ejemplo: example.com o "
-                "https://www.example.com"
-            )
-        )
-        self.domain_entry.pack(pady=(5, 15))
-
-        self.domain_entry.bind(
-            "<Return>",
-            lambda event: self.iniciar_busqueda()
-        )
-
-        # ========================================================
-        # SELECTOR DE REGISTRO
-        # ========================================================
-
+        titulo = ctk.CTkFrame(cabecera, fg_color="transparent")
+        titulo.grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
-            self,
-            text="Tipo de registro",
-            font=("Arial", 13, "bold")
-        ).pack(pady=(0, 5))
+            titulo, text="🔍  DNS Lookup", font=("Arial", 27, "bold"),
+            text_color=self.AZUL, anchor="w"
+        ).pack(fill="x")
+        ctk.CTkLabel(
+            titulo,
+            text="Consulta registros DNS y aprende a interpretar sus resultados.",
+            font=("Arial", 12), text_color="#C0C6CE", anchor="w"
+        ).pack(fill="x", pady=(5, 0))
 
-        self.tipo_registro = ctk.CTkSegmentedButton(
-            self,
-            values=[
-                "TODOS",
-                "A",
-                "AAAA",
-                "CNAME",
-                "MX",
-                "NS",
-                "TXT"
-            ],
-            command=self.cambiar_tipo_registro
-        )
-
-        self.tipo_registro.set("TODOS")
-        self.tipo_registro.pack(pady=(0, 15))
-
-        # ========================================================
-        # BOTONES
-        # ========================================================
-
-        acciones = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
-        )
-        acciones.pack(pady=(0, 10))
-
-        self.search_button = ctk.CTkButton(
-            acciones,
-            text="RESOLVER DNS",
-            width=220,
-            height=42,
-            command=self.iniciar_busqueda
-        )
-        self.search_button.grid(
-            row=0,
-            column=0,
-            padx=8
-        )
-
-        self.base_button = ctk.CTkButton(
-            acciones,
-            text="🌐 DOMINIO BASE",
-            width=180,
-            height=42,
-            command=self.consultar_dominio_base
-        )
-        self.base_button.grid(
-            row=0,
-            column=1,
-            padx=8
-        )
-
-        # ========================================================
-        # RESULTADOS
-        # ========================================================
-
-        self.resultado = ctk.CTkTextbox(
-            self,
-            width=800,
-            height=430,
-            font=("Consolas", 14),
-            wrap="word",
-            fg_color=self.PANEL_COLOR,
-            border_width=1,
-            border_color=self.PANEL_BORDER,
-            corner_radius=12
-        )
-
-        self.resultado.pack(
-            padx=30,
-            pady=(10, 10),
-            fill="both",
-            expand=True
-        )
-
-        self.mostrar_texto(
-            "Introduce un dominio o una URL para comenzar.\n\n"
-            "Ejemplos:\n"
-            "google.com\n"
-            "www.instagram.com\n"
-            "https://www.instagram.com/"
-        )
-
-        # ========================================================
-        # BOTONES EDUCATIVOS
-        # ========================================================
-
-        botones = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
-        )
-        botones.pack(pady=(5, 20))
-
+        acciones = ctk.CTkFrame(cabecera, fg_color="transparent")
+        acciones.grid(row=0, column=1, sticky="e", padx=(12, 0))
         self.btn_significado = ctk.CTkButton(
-            botones,
-            text="¿QUÉ SIGNIFICA?",
-            width=220,
-            height=40,
+            acciones, text="¿Qué significa?", width=145, height=36,
+            fg_color="#242424", hover_color="#353535",
+            border_width=1, border_color="#474747",
             command=self.mostrar_significados
         )
-        self.btn_significado.grid(
-            row=0,
-            column=0,
-            padx=10
-        )
-
+        self.btn_significado.pack(side="left", padx=(0, 8))
         self.btn_funcionamiento = ctk.CTkButton(
-            botones,
-            text="🧠 ¿CÓMO FUNCIONA DNS?",
-            width=220,
-            height=40,
+            acciones, text="¿Cómo funciona DNS?", width=180, height=36,
+            fg_color=self.AZUL, hover_color=self.AZUL_HOVER,
             command=self.mostrar_funcionamiento
         )
-        self.btn_funcionamiento.grid(
-            row=0,
-            column=1,
-            padx=10
+        self.btn_funcionamiento.pack(side="left")
+
+        # ============================================================
+        # CONSULTA DNS
+        # ============================================================
+        consulta = ctk.CTkFrame(
+            self, fg_color=self.PANEL_COLOR, corner_radius=10,
+            border_width=1, border_color=self.PANEL_BORDER
         )
+        consulta.pack(fill="x", padx=28, pady=(0, 12))
+        ctk.CTkLabel(
+            consulta, text="ANALIZADOR DNS", font=("Arial", 12, "bold"),
+            text_color=self.AZUL, anchor="w"
+        ).pack(fill="x", padx=18, pady=(15, 4))
+        ctk.CTkLabel(
+            consulta, text="Introduce un dominio o una URL para consultar sus registros.",
+            font=("Arial", 12), text_color="#C0C6CE", anchor="w"
+        ).pack(fill="x", padx=18, pady=(0, 10))
+
+        entrada_fila = ctk.CTkFrame(consulta, fg_color="transparent")
+        entrada_fila.pack(fill="x", padx=18, pady=(0, 12))
+        self.domain_entry = ctk.CTkEntry(
+            entrada_fila, height=40,
+            placeholder_text="Ejemplo: example.com o https://www.example.com",
+            fg_color="#292929", border_color="#484D52"
+        )
+        self.domain_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.domain_entry.bind("<Return>", lambda event: self.iniciar_busqueda())
+        self.search_button = ctk.CTkButton(
+            entrada_fila, text="🔎  RESOLVER DNS", width=160, height=40,
+            fg_color=self.AZUL, hover_color=self.AZUL_HOVER,
+            command=self.iniciar_busqueda
+        )
+        self.search_button.pack(side="left")
+
+        opciones = ctk.CTkFrame(consulta, fg_color="transparent")
+        opciones.pack(fill="x", padx=18, pady=(0, 15))
+        ctk.CTkLabel(
+            opciones, text="TIPO DE REGISTRO", font=("Arial", 11, "bold"),
+            text_color="#C0C6CE"
+        ).pack(side="left", padx=(0, 10))
+        self.tipo_registro = ctk.CTkSegmentedButton(
+            opciones, values=["TODOS", "A", "AAAA", "CNAME", "MX", "NS", "TXT"],
+            command=self.cambiar_tipo_registro, selected_color=self.AZUL,
+            selected_hover_color=self.AZUL_HOVER
+        )
+        self.tipo_registro.set("TODOS")
+        self.tipo_registro.pack(side="left")
+        self.base_button = ctk.CTkButton(
+            opciones, text="DOMINIO BASE", width=130, height=32,
+            fg_color="#245F8D", hover_color=self.AZUL_HOVER,
+            command=self.consultar_dominio_base
+        )
+        self.base_button.pack(side="right", padx=(10, 0))
+
+        # ============================================================
+        # INDICADORES
+        # ============================================================
+        resumen = ctk.CTkFrame(self, fg_color="transparent")
+        resumen.pack(fill="x", padx=28, pady=(0, 14))
+        self.resumen_valores = {}
+        for col, (clave, nombre, inicial) in enumerate([
+            ("dominio", "DOMINIO", "Sin consultar"),
+            ("registros", "REGISTROS ENCONTRADOS", "--"),
+            ("estado", "ESTADO", "En espera")
+        ]):
+            resumen.grid_columnconfigure(col, weight=1, uniform="dns_resumen")
+            tarjeta = ctk.CTkFrame(
+                resumen, height=112, fg_color=self.PANEL_COLOR,
+                corner_radius=9, border_width=1, border_color=self.PANEL_BORDER
+            )
+            tarjeta.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 6, 0))
+            tarjeta.grid_propagate(False)
+            ctk.CTkLabel(
+                tarjeta, text=nombre, font=("Arial", 11, "bold"),
+                text_color=self.AZUL, anchor="w", height=22
+            ).pack(fill="x", padx=16, pady=(15, 6))
+            etiqueta = ctk.CTkLabel(
+                tarjeta, text=inicial, font=("Arial", 15, "bold"),
+                text_color="#FFFFFF", anchor="w", height=26
+            )
+            etiqueta.pack(fill="x", padx=16, pady=(0, 14))
+            self.resumen_valores[clave] = etiqueta
+
+        # ============================================================
+        # RESULTADOS - APROVECHAN EL ESPACIO DISPONIBLE
+        # ============================================================
+        ctk.CTkLabel(
+            self, text="RESULTADOS DE LA CONSULTA", font=("Arial", 14, "bold"),
+            text_color="#FFFFFF", anchor="w"
+        ).pack(fill="x", padx=28, pady=(0, 8))
+        panel = ctk.CTkFrame(
+            self, fg_color=self.PANEL_COLOR, corner_radius=10,
+            border_width=1, border_color=self.PANEL_BORDER
+        )
+        panel.pack(fill="both", expand=True, padx=28, pady=(0, 18))
+        self.resultado = ctk.CTkTextbox(
+            panel, height=220, font=("Consolas", 12), wrap="word",
+            fg_color=self.PANEL_COLOR, border_width=0, corner_radius=6,
+            text_color="#F2F2F2"
+        )
+        self.resultado.pack(fill="both", expand=True, padx=14, pady=14)
+        self.mostrar_texto(
+            "Introduce un dominio o una URL para comenzar.\n\n"
+            "EJEMPLOS\n"
+            "  google.com\n"
+            "  www.instagram.com\n"
+            "  https://www.instagram.com/\n\n"
+            "Selecciona el tipo de registro para filtrar los resultados."
+        )
+
+    def actualizar_resumen(self):
+        if self.ultimo_resultado is None:
+            return
+        datos = self.ultimo_resultado
+        tipos = ("A", "AAAA", "CNAME", "MX", "NS", "TXT")
+        encontrados = sum(bool(datos.get(tipo)) for tipo in tipos)
+        self.resumen_valores["dominio"].configure(text=str(datos.get("domain", "--")))
+        self.resumen_valores["registros"].configure(text=f"{encontrados} de 6 tipos")
+        self.resumen_valores["estado"].configure(text="Consulta completada")
 
     # ============================================================
     # MOSTRAR TEXTO
@@ -241,44 +222,102 @@ class DNSFrame(ctk.CTkFrame):
     # CONSULTA DNS
     # ============================================================
 
+    # ============================================================
+    # CONSULTA DNS
+    # ============================================================
+
     def buscar_dns(self, dominio):
 
         try:
+
+            # ========================================================
+            # REALIZAR CONSULTA DNS
+            # ========================================================
 
             resultado = resolver_dominio(dominio)
 
             self.ultimo_resultado = resultado
 
-            self.after(
-                0,
-                self.actualizar_resultado
-            )
+            # ========================================================
+            # GUARDAR EN HISTORIAL
+            # ========================================================
+
+            try:
+
+                guardar_dns(resultado)
+
+            except Exception as error_historial:
+
+                print(
+                    "[NetPro Historial] "
+                    "No se pudo guardar el analisis DNS:"
+                )
+
+                print(error_historial)
+
+            # ========================================================
+            # ACTUALIZAR INTERFAZ
+            # ========================================================
+
+            try:
+
+                if self.winfo_exists():
+
+                    self.after(
+                        0,
+                        self.actualizar_resultado
+                    )
+
+            except Exception:
+                pass
 
         except ValueError as error:
 
             self.ultimo_resultado = None
+
             mensaje = str(error)
 
-            self.after(
-                0,
-                lambda: self.finalizar_busqueda(
-                    f"⚠ {mensaje}"
-                )
-            )
+            try:
+
+                if self.winfo_exists():
+
+                    self.after(
+                        0,
+                        lambda mensaje=mensaje:
+                        self.finalizar_busqueda(
+                            f"⚠ {mensaje}"
+                        )
+                    )
+
+            except Exception:
+                pass
 
         except Exception as error:
 
             self.ultimo_resultado = None
+
             mensaje = str(error)
 
-            self.after(
-                0,
-                lambda: self.finalizar_busqueda(
-                    f"⚠ Error inesperado:\n\n{mensaje}"
-                )
-            )
+            try:
 
+                if self.winfo_exists():
+
+                    self.after(
+                        0,
+                        lambda mensaje=mensaje:
+                        self.finalizar_busqueda(
+                            "⚠ Error inesperado:\n\n"
+                            f"{mensaje}"
+                        )
+                    )
+
+            except Exception:
+                pass
     # ============================================================
+    # CAMBIAR REGISTRO
+    # ============================================================
+
+        # ============================================================
     # CAMBIAR REGISTRO
     # ============================================================
 
@@ -295,6 +334,8 @@ class DNSFrame(ctk.CTkFrame):
 
         if self.ultimo_resultado is None:
             return
+
+        self.actualizar_resumen()
 
         tipo = self.tipo_registro.get()
 

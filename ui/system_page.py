@@ -20,17 +20,16 @@ class SystemFrame(ctk.CTkFrame):
     # ============================================================
     # COLORES NETPRO
     # ============================================================
+    FONDO = "#2B2B2B"
+    PANEL = "#1A1A1A"
+    PANEL_2 = "#242424"
+    BORDE = "#444444"
 
-    FONDO = "#08111F"
-    PANEL = "#0D1929"
-    PANEL_2 = "#101F32"
-    BORDE = "#1E3550"
+    AZUL = "#3B8ED0"
+    AZUL_OSCURO = "#36719F"
 
-    AZUL = "#00A8FF"
-    AZUL_OSCURO = "#0077B6"
-
-    TEXTO = "#F1F5F9"
-    TEXTO_2 = "#AAB8C7"
+    TEXTO = "#FFFFFF"
+    TEXTO_2 = "#A0A0A0"
 
     VERDE = "#2ECC71"
     AMARILLO = "#F1C40F"
@@ -112,6 +111,9 @@ class SystemFrame(ctk.CTkFrame):
     # ============================================================
     # ENCABEZADO
     # ============================================================
+        # ============================================================
+    # ENCABEZADO
+    # ============================================================
 
     def crear_encabezado(self):
 
@@ -126,6 +128,10 @@ class SystemFrame(ctk.CTkFrame):
             pady=(25, 10)
         )
 
+        # ========================================================
+        # TITULO Y DESCRIPCION - LADO IZQUIERDO
+        # ========================================================
+
         titulo_frame = ctk.CTkFrame(
             frame,
             fg_color="transparent"
@@ -139,15 +145,12 @@ class SystemFrame(ctk.CTkFrame):
 
         ctk.CTkLabel(
             titulo_frame,
-            text="MI SISTEMA",
-            font=(
-                "Arial",
-                28,
-                "bold"
-            ),
-            text_color=self.TEXTO
+            text="🖥 Mi Sistema",
+            font=("Arial", 28, "bold"),
+            text_color=self.AZUL
         ).pack(
-            anchor="w"
+            anchor="w",
+            pady=(0, 4)
         )
 
         ctk.CTkLabel(
@@ -156,15 +159,16 @@ class SystemFrame(ctk.CTkFrame):
                 "Informacion de hardware, "
                 "red y seguridad del equipo"
             ),
-            font=(
-                "Arial",
-                14
-            ),
+            font=("Arial", 14),
             text_color=self.TEXTO_2
         ).pack(
             anchor="w",
             pady=(3, 0)
         )
+
+        # ========================================================
+        # BOTONES - LADO DERECHO
+        # ========================================================
 
         botones = ctk.CTkFrame(
             frame,
@@ -722,11 +726,15 @@ class SystemFrame(ctk.CTkFrame):
         self,
         sistema
     ):
+        # Evitar actualizar una pagina que ya fue destruida
+        if not self.winfo_exists():
+            return
 
         self.sistema = sistema
         self.cargando = False
 
-        self.btn_actualizar.configure(
+        if self.winfo_exists() and self.btn_actualizar.winfo_exists():
+            self.btn_actualizar.configure(
             state="normal",
             text="Actualizar"
         )

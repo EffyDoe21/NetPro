@@ -76,6 +76,7 @@ class HTTPFrame(ctk.CTkFrame):
         ).grid(
             row=0,
             column=0,
+            sticky="w",
             pady=(0, 4)
         )
 
@@ -89,7 +90,8 @@ class HTTPFrame(ctk.CTkFrame):
             text_color=self.COLOR_TEXTO
         ).grid(
             row=1,
-            column=0
+            column=0,
+            sticky="w"
         )
 
         # ==========================================================
@@ -119,6 +121,7 @@ class HTTPFrame(ctk.CTkFrame):
         ).grid(
             row=0,
             column=0,
+            sticky="w",
             pady=(0, 5)
         )
 
@@ -132,7 +135,7 @@ class HTTPFrame(ctk.CTkFrame):
             row=1,
             column=0,
             sticky="ew",
-            padx=120
+            padx=0
         )
 
         self.entry_url.bind(
@@ -154,6 +157,7 @@ class HTTPFrame(ctk.CTkFrame):
         self.btn_analizar.grid(
             row=2,
             column=0,
+            sticky="w",
             pady=(12, 5)
         )
 
@@ -248,7 +252,7 @@ class HTTPFrame(ctk.CTkFrame):
         self.area_central.grid_columnconfigure(
             0,
             weight=1,
-            minsize=400
+            minsize=250
         )
 
         self.area_central.grid_columnconfigure(
@@ -260,7 +264,7 @@ class HTTPFrame(ctk.CTkFrame):
         self.area_central.grid_columnconfigure(
             2,
             weight=1,
-            minsize=400
+            minsize=250
         )
 
         # ==========================================================
