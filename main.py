@@ -1,3 +1,6 @@
+
+import os
+import sys
 import customtkinter as ctk
 
 from ui.home import HomeFrame
@@ -12,16 +15,40 @@ from ui.learn import LearnFrame
 from ui.history_page import HistoryFrame
 
 
+# ============================================================
+# CONFIGURACION GENERAL
+# ============================================================
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 
+# ============================================================
+# RUTAS DE RECURSOS
+# ============================================================
+
+def ruta_recurso(ruta):
+    """
+    Obtiene la ruta de un recurso tanto durante el desarrollo
+    como en el ejecutable generado con PyInstaller.
+    """
+    if getattr(sys, "frozen", False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+
+    return os.path.join(base, ruta)
+
+
+# ============================================================
+# APLICACION PRINCIPAL
+# ============================================================
+
 class NetProApp(ctk.CTk):
 
-    # ============================================
+    # ========================================================
     # COLORES
-    # ============================================
+    # ========================================================
 
     AZUL = "#3B8ED0"
     VERDE = "#2ECC71"
@@ -29,41 +56,53 @@ class NetProApp(ctk.CTk):
     GRIS = "#7F8C8D"
     TEXTO_SECUNDARIO = "#A0A0A0"
 
+    VERSION = "1.0.0"
+
     def __init__(self):
         super().__init__()
 
-        self.title(
-            "NetPro - Network & Security Toolkit"
-        )
+        # ====================================================
+        # VENTANA PRINCIPAL
+        # ====================================================
 
+        self.title("NetPro - Network & Security Toolkit")
         self.geometry("1200x750")
         self.minsize(1000, 650)
 
-        # ========================================
+        # ====================================================
+        # ICONO PERSONALIZADO
+        # ====================================================
+
+        self.ruta_icono = ruta_recurso("assets/netpro.ico")
+
+        if os.path.isfile(self.ruta_icono):
+            try:
+                self.iconbitmap(self.ruta_icono)
+            except Exception as error:
+                print(
+                    f"No se pudo cargar el icono de NetPro: {error}"
+                )
+
+        # ====================================================
         # SIDEBAR
-        # ========================================
+        # ====================================================
 
-        
         self.sidebar = ctk.CTkScrollableFrame(
-        self,
-        width=230,
-        corner_radius=0,
-        scrollbar_button_color="#2478B5",
-        scrollbar_button_hover_color="#3594D0"
+            self,
+            width=230,
+            corner_radius=0,
+            scrollbar_button_color="#2478B5",
+            scrollbar_button_hover_color="#3594D0"
         )
-
 
         self.sidebar.pack(
             side="left",
             fill="y"
         )
 
-        # Mantener ancho fijo del sidebar.
-        #self.sidebar.pack_propagate(False)
-
-        # ========================================
+        # ====================================================
         # LOGO
-        # ========================================
+        # ====================================================
 
         self.logo = ctk.CTkLabel(
             self.sidebar,
@@ -85,9 +124,9 @@ class NetProApp(ctk.CTk):
             pady=(0, 25)
         )
 
-        # ========================================
-        # MENÚ
-        # ========================================
+        # ====================================================
+        # MENU DE NAVEGACION
+        # ====================================================
 
         self.create_menu_button(
             "🏠  Inicio",
@@ -95,18 +134,18 @@ class NetProApp(ctk.CTk):
         )
 
         self.create_menu_button(
-        "🌐  IP & Subnet",
-        self.show_ip
+            "🌐  IP & Subnet",
+            self.show_ip
         )
 
         self.create_menu_button(
-        "🌐  IPv6",
-        self.show_ipv6
+            "🌐  IPv6",
+            self.show_ipv6
         )
 
         self.create_menu_button(
-        "🔎  DNS",
-        self.show_dns
+            "🔎  DNS",
+            self.show_dns
         )
 
         self.create_menu_button(
@@ -139,13 +178,13 @@ class NetProApp(ctk.CTk):
             self.show_history
         )
 
-        # ========================================
-        # VERSIÓN
-        # ========================================
+        # ====================================================
+        # VERSION
+        # ====================================================
 
         self.version = ctk.CTkLabel(
             self.sidebar,
-            text="NetPro v0.1",
+            text=f"NetPro v{self.VERSION}",
             font=("Arial", 10),
             text_color="#8A8A8A"
         )
@@ -155,38 +194,33 @@ class NetProApp(ctk.CTk):
             pady=(5, 15)
         )
 
-        # ========================================
+        # ====================================================
         # CONTENEDOR PRINCIPAL
-        # ========================================
+        # ====================================================
 
         self.content = ctk.CTkFrame(
             self,
             corner_radius=0,
             fg_color="#2B2B2B"
-                )
+        )
 
         self.content.pack(
             side="right",
             fill="both",
             expand=True
-            )
+        )
 
-
-        # ========================================
-        # PÁGINA INICIAL
-        # ========================================
+        # ====================================================
+        # PAGINA INICIAL
+        # ====================================================
 
         self.show_home()
 
-    # ============================================
-    # CREAR BOTONES
-    # ============================================
+    # ========================================================
+    # CREAR BOTONES DEL MENU
+    # ========================================================
 
-    def create_menu_button(
-        self,
-        text,
-        command
-    ):
+    def create_menu_button(self, text, command):
 
         button = ctk.CTkButton(
             self.sidebar,
@@ -202,9 +236,11 @@ class NetProApp(ctk.CTk):
             fill="x"
         )
 
-    # ============================================
+        return button
+
+    # ========================================================
     # CAMBIAR PAGINAS
-    # ============================================
+    # ========================================================
 
     def show_page(self, frame_class):
 
@@ -212,10 +248,12 @@ class NetProApp(ctk.CTk):
         for widget in self.content.winfo_children():
             widget.destroy()
 
-        # Mantener el fondo gris grafito
-        self.content.configure(fg_color="#2B2B2B")
+        # Mantener el fondo grafito
+        self.content.configure(
+            fg_color="#2B2B2B"
+        )
 
-        # Modulos que no necesitan scroll externo
+        # Modulos que administran su propio desplazamiento
         modulos_sin_scroll = (
             SystemFrame,
             IPv6Frame,
@@ -231,7 +269,7 @@ class NetProApp(ctk.CTk):
 
         else:
 
-            # Crear contenedor desplazable
+            # Contenedor con desplazamiento externo
             contenedor = ctk.CTkScrollableFrame(
                 self.content,
                 corner_radius=0,
@@ -247,15 +285,15 @@ class NetProApp(ctk.CTk):
 
             page = frame_class(contenedor)
 
-        # Mostrar pagina
+        # Mostrar la pagina seleccionada
         page.pack(
             fill="both",
             expand=True
         )
 
-    # ============================================
+    # ========================================================
     # NAVEGACION
-    # ============================================
+    # ========================================================
 
     def show_home(self):
         self.show_page(HomeFrame)
@@ -287,14 +325,11 @@ class NetProApp(ctk.CTk):
     def show_history(self):
         self.show_page(HistoryFrame)
 
-    
 
 # ============================================================
 # INICIAR NETPRO
 # ============================================================
 
 if __name__ == "__main__":
-
     app = NetProApp()
-
     app.mainloop()

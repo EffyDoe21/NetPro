@@ -1,7 +1,9 @@
+
 import subprocess
 import re
 import ipaddress
 import socket
+import os
 
 
 # ============================================================
@@ -10,8 +12,7 @@ import socket
 
 def validar_destino(destino: str) -> str:
     """
-    Valida que el destino sea una dirección IPv4,
-    IPv6 o un nombre de host válido.
+    Valida direcciones IPv4, IPv6 y nombres de host.
     """
 
     destino = destino.strip()
@@ -21,20 +22,12 @@ def validar_destino(destino: str) -> str:
             "Debes introducir una IP o dominio."
         )
 
-    # ========================================================
-    # COMPROBAR SI ES UNA DIRECCIÓN IP
-    # ========================================================
-
     try:
         ipaddress.ip_address(destino)
         return destino
 
     except ValueError:
         pass
-
-    # ========================================================
-    # VALIDAR NOMBRE DE HOST
-    # ========================================================
 
     patron = (
         r"^(?=.{1,253}$)"
@@ -57,38 +50,33 @@ def validar_destino(destino: str) -> str:
 
 
 # ============================================================
-# EJECUTAR PING
+# EJECUTAR PING SIN VENTANA DE CONSOLA
 # ============================================================
 
 def ejecutar_ping(destino: str, paquetes: int = 4) -> dict:
     """
-    Ejecuta Ping en Windows.
+    Ejecuta Ping sin abrir ventanas de CMD o PowerShell.
 
-    Devuelve información estructurada sobre:
-
+    Devuelve:
         destino
-        IP
-        paquetes enviados
-        paquetes recibidos
-        paquetes perdidos
-        porcentaje de pérdida
-        latencia mínima
-        latencia máxima
-        latencia promedio
+        ip
+        enviados
+        recibidos
+        perdidos
+        perdida
+        minimo
+        maximo
+        promedio
         respuesta
     """
 
     # ========================================================
-    # VALIDAR DESTINO
+    # VALIDAR PARAMETROS
     # ========================================================
 
     destino = validar_destino(destino)
 
-    # ========================================================
-    # VALIDAR CANTIDAD DE PAQUETES
-    # ========================================================
-
-    if paquetes < 1 or paquetes > 100:
+    if not isinstance(paquetes, int) or not 1 <= paquetes <= 100:
         raise ValueError(
             "La cantidad de paquetes debe estar entre 1 y 100."
         )
@@ -98,97 +86,117 @@ def ejecutar_ping(destino: str, paquetes: int = 4) -> dict:
     # ========================================================
 
     try:
+        ip_obj = ipaddress.ip_address(destino)
+        ip = str(ip_obj)
 
-        ip = socket.gethostbyname(destino)
+    except ValueError:
+        try:
+            direcciones = socket.getaddrinfo(
+                destino,
+                None,
+                type=socket.SOCK_STREAM
+            )
+            ip = direcciones[0][4][0]
 
-    except socket.gaierror:
-
-        raise ValueError(
-            "No fue posible resolver el destino."
-        )
+        except socket.gaierror as error:
+            raise ValueError(
+                "No fue posible resolver el destino."
+            ) from error
 
     # ========================================================
-    # COMANDO PING
+    # PREPARAR COMANDO
     # ========================================================
 
     comando = [
         "ping",
         "-n",
         str(paquetes),
-        destino
+        ip
     ]
 
     # ========================================================
-    # EJECUTAR
+    # OCULTAR CONSOLA EN WINDOWS
+    # ========================================================
+
+    flags = 0
+
+    if os.name == "nt":
+        flags = subprocess.CREATE_NO_WINDOW
+
+    # ========================================================
+    # EJECUTAR PING
     # ========================================================
 
     try:
-
         proceso = subprocess.run(
             comando,
             capture_output=True,
             text=True,
             shell=False,
-            timeout=15,
-            errors="replace"
+            timeout=max(15, paquetes * 5 + 5),
+            errors="replace",
+            creationflags=flags
         )
 
-    except subprocess.TimeoutExpired:
-
+    except subprocess.TimeoutExpired as error:
         raise ValueError(
-            "La prueba de Ping excedió "
-            "el tiempo permitido."
-        )
+            "La prueba de Ping excedió el tiempo permitido."
+        ) from error
 
-    except FileNotFoundError:
-
+    except FileNotFoundError as error:
         raise ValueError(
-            "No se encontró el comando PING "
-            "en Windows."
-        )
+            "No se encontró el comando PING en Windows."
+        ) from error
 
     # ========================================================
     # OBTENER SALIDA
     # ========================================================
 
-    salida = proceso.stdout
-
-    if not salida:
-        salida = proceso.stderr
+    salida = proceso.stdout or proceso.stderr or ""
 
     # ========================================================
     # EXTRAER TIEMPOS
     # ========================================================
 
-    # Windows puede mostrar:
-    #
+    # Compatible con:
     # time=20ms
     # time<1ms
     # tiempo=20ms
     # tiempo<1ms
 
-    tiempos = re.findall(
-        r"(?:time|tiempo)[=<]\s*(\d+)\s*ms",
+    coincidencias = re.findall(
+        r"(?:time|tiempo)\s*[=<]\s*(\d+)\s*ms",
         salida,
         flags=re.IGNORECASE
     )
 
     tiempos = [
-        int(t)
-        for t in tiempos
+        int(valor)
+        for valor in coincidencias
     ]
 
     # ========================================================
-    # PAQUETES
+    # EXTRAER PAQUETES RECIBIDOS
     # ========================================================
 
-    enviados = paquetes
+    # El resumen de Windows es más fiable que contar
+    # únicamente los tiempos de respuesta.
 
-    recibidos = len(tiempos)
-
-    perdidos = (
-        enviados - recibidos
+    coincidencia_recibidos = re.search(
+        r"(?:Received|Recibidos)\s*=\s*(\d+)",
+        salida,
+        flags=re.IGNORECASE
     )
+
+    if coincidencia_recibidos:
+        recibidos = int(coincidencia_recibidos.group(1))
+    else:
+        recibidos = len(tiempos)
+
+    enviados = paquetes
+    recibidos = min(recibidos, enviados)
+
+    perdidos = max(0, enviados - recibidos)
 
     perdida_porcentaje = round(
         (perdidos / enviados) * 100,
@@ -196,22 +204,17 @@ def ejecutar_ping(destino: str, paquetes: int = 4) -> dict:
     )
 
     # ========================================================
-    # LATENCIA
+    # CALCULAR LATENCIAS
     # ========================================================
 
     if tiempos:
-
         minimo = min(tiempos)
-
         maximo = max(tiempos)
-
         promedio = round(
             sum(tiempos) / len(tiempos),
             2
         )
-
     else:
-
         minimo = None
         maximo = None
         promedio = None
@@ -223,16 +226,13 @@ def ejecutar_ping(destino: str, paquetes: int = 4) -> dict:
     return {
         "destino": destino,
         "ip": ip,
-
         "enviados": enviados,
         "recibidos": recibidos,
         "perdidos": perdidos,
         "perdida": perdida_porcentaje,
-
         "minimo": minimo,
         "maximo": maximo,
         "promedio": promedio,
-
         "respuesta": recibidos > 0
     }
 
@@ -243,12 +243,7 @@ def ejecutar_ping(destino: str, paquetes: int = 4) -> dict:
 
 if __name__ == "__main__":
 
-    resultado = ejecutar_ping(
-        "example.com"
-    )
+    resultado = ejecutar_ping("example.com")
 
     for clave, valor in resultado.items():
-
-        print(
-            f"{clave}: {valor}"
-        )
+        print(f"{clave}: {valor}")

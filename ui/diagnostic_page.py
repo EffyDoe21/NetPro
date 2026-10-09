@@ -111,29 +111,30 @@ class DiagnosticFrame(ctk.CTkFrame):
         ).pack(fill="x", padx=22, pady=(7, 9))
 
         # El panel crece con la ventana, sin dejar una franja de otro color.
-        self.contenido = ctk.CTkScrollableFrame(
-            self, height=330, corner_radius=10,
-            fg_color=self.PANEL_COLOR, border_width=1,
-            border_color=self.PANEL_BORDER,
-            scrollbar_button_color="#3B8ED0",
-            scrollbar_button_hover_color="#367EB8"
+        self.contenido = ctk.CTkFrame(
+            self,
+            height=330,
+            corner_radius=10,
+            fg_color=self.PANEL_COLOR,
+            border_width=1,
+            border_color=self.PANEL_BORDER
         )
-        self.contenido.pack(fill="both", expand=True, padx=22, pady=(0, 20))
+
+        self.contenido.pack(
+            fill="both",
+            expand=True,
+            padx=22,
+            pady=(0, 20)
+        )
+
         self.mostrar_inicio()
 
     def limpiar_contenido(self):
 
-
-
         for widget in self.contenido.winfo_children():
-
             widget.destroy()
 
-
-
     def mostrar_inicio(self):
-
-
 
         self.limpiar_contenido()
 

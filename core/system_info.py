@@ -340,11 +340,37 @@ def traducir_tipo_memoria(codigo) -> str:
 
 
 # ============================================================
+# EJECUCION SILENCIOSA DE COMANDOS
+# ============================================================
+
+def ejecutar_comando_oculto(comando, timeout=POWERSHELL_TIMEOUT):
+    """Ejecuta comandos sin mostrar ventanas CMD/PowerShell en Windows."""
+    opciones = {
+        "capture_output": True,
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "replace",
+        "timeout": timeout,
+        "stdin": subprocess.DEVNULL,
+        "shell": False,
+    }
+
+    if os.name == "nt":
+        inicio = subprocess.STARTUPINFO()
+        inicio.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        inicio.wShowWindow = subprocess.SW_HIDE
+        opciones["startupinfo"] = inicio
+        opciones["creationflags"] = subprocess.CREATE_NO_WINDOW
+
+    return subprocess.run(comando, **opciones)
+
+
+# ============================================================
 # POWERSHELL
 # ============================================================
 
 def ejecutar_powershell(script: str, timeout=POWERSHELL_TIMEOUT):
-    resultado = subprocess.run(
+    resultado = ejecutar_comando_oculto(
         [
             "powershell.exe",
             "-NoLogo",
@@ -355,16 +381,7 @@ def ejecutar_powershell(script: str, timeout=POWERSHELL_TIMEOUT):
             "-Command",
             script
         ],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=timeout,
-        creationflags=(
-            subprocess.CREATE_NO_WINDOW
-            if os.name == "nt"
-            else 0
-        )
+        timeout=timeout
     )
 
     if resultado.returncode != 0:
@@ -1661,21 +1678,9 @@ def obtener_entorno() -> EnvironmentInfo:
     # --------------------------------------------------------
 
     try:
-        resultado = subprocess.run(
-            [
-                "ollama",
-                "--version"
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=4,
-            creationflags=(
-                subprocess.CREATE_NO_WINDOW
-                if os.name == "nt"
-                else 0
-            )
+        resultado = ejecutar_comando_oculto(
+            ["ollama", "--version"],
+            timeout=4
         )
 
         if resultado.returncode == 0:
@@ -1696,21 +1701,9 @@ def obtener_entorno() -> EnvironmentInfo:
 
     if entorno.ollama_disponible:
         try:
-            resultado = subprocess.run(
-                [
-                    "ollama",
-                    "list"
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=5,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW
-                    if os.name == "nt"
-                    else 0
-                )
+            resultado = ejecutar_comando_oculto(
+                ["ollama", "list"],
+                timeout=5
             )
 
             if resultado.returncode == 0:

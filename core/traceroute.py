@@ -1,3 +1,5 @@
+
+
 import subprocess
 import platform
 
@@ -10,13 +12,13 @@ from core.ping import validar_destino
 
 def ejecutar_traceroute(destino: str, max_saltos: int = 30) -> dict:
     """
-    Ejecuta un traceroute hacia un dominio o dirección IP.
+    Ejecuta Traceroute sin mostrar ventanas de consola.
 
     Windows:
-        utiliza tracert
+        tracert
 
     Linux / macOS:
-        utiliza traceroute
+        traceroute
 
     Devuelve:
         destino
@@ -34,13 +36,12 @@ def ejecutar_traceroute(destino: str, max_saltos: int = 30) -> dict:
     destino = validar_destino(destino)
 
     # ========================================================
-    # VALIDAR MÁXIMO DE SALTOS
+    # VALIDAR NUMERO MAXIMO DE SALTOS
     # ========================================================
 
-    if max_saltos < 1 or max_saltos > 255:
+    if not isinstance(max_saltos, int) or not 1 <= max_saltos <= 255:
         raise ValueError(
-            "El número máximo de saltos debe estar "
-            "entre 1 y 255."
+            "El número máximo de saltos debe estar entre 1 y 255."
         )
 
     # ========================================================
@@ -74,6 +75,15 @@ def ejecutar_traceroute(destino: str, max_saltos: int = 30) -> dict:
         ]
 
     # ========================================================
+    # CONFIGURAR EJECUCION INVISIBLE
+    # ========================================================
+
+    flags = 0
+
+    if sistema == "windows":
+        flags = subprocess.CREATE_NO_WINDOW
+
+    # ========================================================
     # EJECUTAR TRACEROUTE
     # ========================================================
 
@@ -84,8 +94,9 @@ def ejecutar_traceroute(destino: str, max_saltos: int = 30) -> dict:
             capture_output=True,
             text=True,
             shell=False,
-            timeout=60,
-            errors="replace"
+            timeout=120,
+            errors="replace",
+            creationflags=flags
         )
 
         # ====================================================
@@ -98,6 +109,20 @@ def ejecutar_traceroute(destino: str, max_saltos: int = 30) -> dict:
             salida = proceso.stderr.strip()
 
         # ====================================================
+        # EVALUAR RESULTADO
+        # ====================================================
+
+        exitoso = proceso.returncode == 0
+
+        error = None
+
+        if not exitoso:
+            error = (
+                proceso.stderr.strip()
+                or "Traceroute finalizó con un error."
+            )
+
+        # ====================================================
         # RESULTADO
         # ====================================================
 
@@ -106,12 +131,12 @@ def ejecutar_traceroute(destino: str, max_saltos: int = 30) -> dict:
             "max_saltos": max_saltos,
             "comando": " ".join(comando),
             "salida": salida,
-            "exitoso": proceso.returncode == 0,
-            "error": None
+            "exitoso": exitoso,
+            "error": error
         }
 
     # ========================================================
-    # TIMEOUT
+    # TIEMPO MAXIMO SUPERADO
     # ========================================================
 
     except subprocess.TimeoutExpired:
@@ -123,13 +148,13 @@ def ejecutar_traceroute(destino: str, max_saltos: int = 30) -> dict:
             "salida": "",
             "exitoso": False,
             "error": (
-                "El traceroute superó el tiempo máximo "
-                "de espera."
+                "Traceroute superó el tiempo máximo "
+                "de espera de 120 segundos."
             )
         }
 
     # ========================================================
-    # COMANDO NO ENCONTRADO
+    # COMANDO NO DISPONIBLE
     # ========================================================
 
     except FileNotFoundError:
@@ -182,6 +207,5 @@ if __name__ == "__main__":
     print(resultado["salida"])
 
     if resultado["error"]:
-
         print("\nError:")
         print(resultado["error"])

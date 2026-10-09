@@ -1,17 +1,23 @@
-# Entorno virtual
+
+# ==========================================
+# NETPRO - GITIGNORE
+# ==========================================
+
+# Entornos virtuales
 .venv/
 venv/
 env/
 
 # Cache de Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
 
 # Variables de entorno / secretos
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -33,3 +39,14 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
+
+# Compilacion con PyInstaller
+build/
+dist/
+
+# Instaladores generados
+installer/
+
+# Archivos temporales de instalacion
+*.bak
+*.old
